@@ -46,14 +46,11 @@ const SatisfactionGauge = ({ onClick }) => {
   return (
     <div 
       onClick={onClick}
-      className="flex items-center gap-4 px-4 py-2 bg-white rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-    >
-      <div className="flex flex-col items-center justify-center">
+      className="grid grid-cols-[auto_auto] items-center justify-center w-full h-full gap-2 pl-7 pr-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="relative w-[200px] justify-self-center">
         <svg
-          width="84"
-          height="44"
           viewBox="0 0 100 50"
-          className="block"
+          className="w-full h-auto block"
           aria-hidden="true"
         >
           {/* Arrière-plan de la jauge */}
@@ -84,17 +81,17 @@ const SatisfactionGauge = ({ onClick }) => {
           />
           <circle cx="50" cy="50" r="5" fill="#111827" />
         </svg>
-        <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold tracking-wider">Satisfaction</div>
+        <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold tracking-wider text-center">Satisfaction</div>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col items-center justify-center gap-1 text-center justify-self-center">
         <div className="flex items-center gap-2">
           <span className={`text-2xl font-black ${color.text}`}>
             {data.average.toFixed(1)}
           </span>
           <span className="text-xs text-gray-400 font-bold">/ 5</span>
         </div>
-        <div className={`text-xs font-bold px-2 py-0.5 rounded-full bg-opacity-10 ${color.bg} ${color.text} text-center`}>
+        <div className={`text-xs font-bold px-2 py-0.5 rounded-full bg-opacity-10 border border-gray-300 ${color.text} text-center`}>
           {color.label}
         </div>
         <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1">
