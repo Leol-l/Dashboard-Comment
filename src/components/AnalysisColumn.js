@@ -18,10 +18,10 @@ export default function AnalysisColumn({ title, items, color, type, onClick }) {
           onClick?.();
         }
       }}
-      className={`w-full h-full rounded-lg border border-gray-300 border-l-4 ${color} p-4 bg-white hover:shadow-sm transition-all min-h-[300px] ${onClick ? 'cursor-pointer' : ''}`}
+      className={`w-full h-full rounded-lg border border-gray-300 border-l-4 ${color} p-4 bg-white hover:shadow-sm transition-all min-h-[300px] ${onClick ? 'cursor-pointer' : ''} flex flex-col min-h-0`}
     >
-      <h3 className="text-gray-700 text-[10px] font-semibold uppercase tracking-widest mb-4">{title}</h3>
-      <ul className="space-y-3">
+      <h2 className="text-gray-700 text-[13px] font-semibold uppercase tracking-widest mb-4">{title}</h2>
+      <ul className="space-y-3 flex-1 min-h-0 overflow-y-auto pr-1">
         {items.map((item, i) => (
           <li key={i} className="flex items-center gap-3 group">
             <div className={`w-1.5 h-6 rounded-full transition-all group-hover:scale-x-150 ${type === 'theme' ? 'bg-emerald-600' : (typeof item === 'object' ? getUrgencyColorClass(item.mainUrgency) : 'bg-red-400')}`} />

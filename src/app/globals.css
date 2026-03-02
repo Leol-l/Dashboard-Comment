@@ -29,3 +29,16 @@ html,
 body {
   height: 100%;
 }
+
+@keyframes motivationScroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-motivation-scroll {
+  animation: motivationScroll 40s linear infinite;
+}

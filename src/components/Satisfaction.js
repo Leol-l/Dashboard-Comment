@@ -91,13 +91,13 @@ const SatisfactionGauge = ({ onClick }) => {
           <span className={`text-2xl font-black ${color.text}`}>
             {safeAverage.toFixed(1)}
           </span>
-          <span className="text-xs text-gray-400 font-bold">/ 5</span>
+          <span className="text-xs text-gray-600 font-bold">/ 5</span>
         </div>
         <div className={`text-xs font-bold px-2 py-0.5 rounded-full bg-opacity-10 border border-gray-300 ${color.text} text-center`}>
           {color.label}
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1">
-          <Star className="w-3 h-3 fill-gray-300 stroke-none" />
+        <div className="flex items-center gap-1 text-[10px] text-gray-600 mt-1">
+          <Star className="w-3 h-3 fill-gray-500 stroke-none" />
           <span>{data.total} avis analysés</span>
         </div>
       </div>

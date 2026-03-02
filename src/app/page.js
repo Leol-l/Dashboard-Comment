@@ -4,6 +4,8 @@ import axios from 'axios';
 import StatCard from '../components/StatCard';
 import AnalysisColumn from '../components/AnalysisColumn';
 import SatisfactionGauge from '../components/Satisfaction';
+import Motivation from '../components/Motivation';
+import SectionDistribution from '../components/SectionDistribution';
 
 export default function Home() {
   const urgencyOrder = {
@@ -44,6 +46,16 @@ export default function Home() {
   const [topIrritants, setTopIrritants] = useState([]);
   const [irritantsDetails, setIrritantsDetails] = useState([]);
   const [selectedColumn, setSelectedColumn] = useState(null);
+  const [expandedThemeRows, setExpandedThemeRows] = useState({});
+  const [commentGroups, setCommentGroups] = useState({ day: [], month: [], total: [] });
+  const [motivationItems, setMotivationItems] = useState([]);
+  const [selectedCommentGroup, setSelectedCommentGroup] = useState(null);
+  const [expandedCommentRows, setExpandedCommentRows] = useState({});
+  const [sectionDistribution, setSectionDistribution] = useState([
+    { key: 'ERP', label: 'ERP', count: 0 },
+    { key: 'Admin', label: 'Admin', count: 0 },
+    { key: 'Support', label: 'Support', count: 0 }
+  ]);
   const [loading, setLoading] = useState(true);
 
   const sanitizeStat = (value) => {
@@ -61,9 +73,30 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('/api/external/dashboard/satisfaction-data');
-        const items = Array.isArray(res.data.data) ? res.data.data : [];
-        const apiStats = res.data.stats;
+        const [satisfactionResult, sectionsResult] = await Promise.allSettled([
+          axios.get('/api/external/dashboard/satisfaction-data'),
+          axios.get('/api/external/dashboard/sections-distribution')
+        ]);
+
+        if (satisfactionResult.status !== 'fulfilled') {
+          throw satisfactionResult.reason;
+        }
+
+        const satisfactionRes = satisfactionResult.value;
+        const sectionsRes = sectionsResult.status === 'fulfilled' ? sectionsResult.value : null;
+
+        const items = Array.isArray(satisfactionRes.data.data) ? satisfactionRes.data.data : [];
+        const apiStats = satisfactionRes.data.stats;
+
+        const sections = Array.isArray(sectionsRes?.data?.sections)
+          ? sectionsRes.data.sections
+          : [];
+
+        setSectionDistribution([
+          sections.find((section) => section.key === 'ERP') ?? { key: 'ERP', label: 'ERP', count: 0 },
+          sections.find((section) => section.key === 'Admin') ?? { key: 'Admin', label: 'Admin', count: 0 },
+          sections.find((section) => section.key === 'Support') ?? { key: 'Support', label: 'Support', count: 0 }
+        ]);
 
         const now = new Date();
         const year = now.getFullYear();
@@ -73,19 +106,22 @@ export default function Home() {
         const monthKey = `${year}-${month}`;
 
         const processStats = (filteredItems) => {
+          const sortedItems = [...filteredItems].sort((left, right) => {
+            return Number(right.id || 0) - Number(left.id || 0);
+          });
+
           const count = filteredItems.length;
           const avg = count
             ? filteredItems.reduce((acc, curr) => acc + Number(curr.satisfaction || 0), 0) / count
             : 0;
 
           let deltaPct = 0;
-          if (count >= 2) {
-            const currentNote = Number(filteredItems[0]?.satisfaction || 0);
-            const previousNote = Number(filteredItems[1]?.satisfaction || 0);
-
-            if (previousNote !== 0) {
-              deltaPct = ((currentNote - previousNote) / previousNote) * 100;
-            }
+          if (sortedItems.length >= 2) {
+            const total = sortedItems.reduce((acc, curr) => acc + Number(curr.satisfaction || 0), 0);
+            const currentAvg = total / sortedItems.length;
+            const previousTotal = total - Number(sortedItems[0]?.satisfaction || 0);
+            const previousAvg = previousTotal / (sortedItems.length - 1);
+            deltaPct = currentAvg - previousAvg;
           }
 
           return { count, avg, deltaPct };
@@ -113,6 +149,37 @@ export default function Home() {
           month: processStats(items.filter(item => getReferenceDate(item).startsWith(monthKey))),
           total: processStats(items)
         };
+
+        const dayItems = items.filter(item => getReferenceDate(item).startsWith(todayKey));
+        const monthItems = items.filter(item => getReferenceDate(item).startsWith(monthKey));
+        const totalItems = items;
+
+        const mapCommentRows = (rows) => rows.map((item, index) => ({
+          rowId: `${item?.tickets_id ?? item?.id ?? 'N/A'}-${getReferenceDate(item)}-${index}`,
+          ticketId: item?.tickets_id ?? item?.id ?? 'N/A',
+          createdAt: getReferenceDate(item) || 'N/A',
+          comment: item?.comment || 'Aucun commentaire',
+          satisfaction: Number(item?.satisfaction ?? 0)
+        }));
+
+        setCommentGroups({
+          day: mapCommentRows(dayItems),
+          month: mapCommentRows(monthItems),
+          total: mapCommentRows(totalItems)
+        });
+
+        const positiveComments = totalItems
+          .filter((item) => Number(item?.satisfaction ?? 0) >= 4 && String(item?.comment || '').trim() !== '')
+          .map((item, index) => ({
+            rowId: `motivation-${item?.tickets_id ?? item?.id ?? 'N/A'}-${index}`,
+            ticketId: item?.tickets_id ?? item?.id ?? 'N/A',
+            createdAt: getReferenceDate(item) || 'N/A',
+            comment: item?.comment,
+            satisfaction: Number(item?.satisfaction ?? 0)
+          }))
+          .slice(0, 20);
+
+        setMotivationItems(positiveComments);
 
         const nextStats = {
           day: sanitizeStat({ ...(apiStats?.today ?? fallbackStats.day), deltaPct: fallbackStats.day.deltaPct }),
@@ -155,7 +222,9 @@ export default function Home() {
 
               ticketsMap.set(ticketKey, {
                 ticketId,
-                createdAt
+                createdAt,
+                comment: item?.comment || 'Aucun commentaire',
+                satisfaction: Number(item?.satisfaction ?? 0)
               });
             });
 
@@ -190,10 +259,8 @@ export default function Home() {
           tickets: Array.from(ticketsMap.values())
         }));
 
-        const topDetailedThemes = detailedThemes.slice(0, 5);
-
-        setThemeDetails(topDetailedThemes);
-        setTopThemes(topDetailedThemes.map((item) => ({
+        setThemeDetails(detailedThemes);
+        setTopThemes(detailedThemes.map((item) => ({
           theme: item.theme,
           count: item.tickets.length
         })));
@@ -234,33 +301,75 @@ export default function Home() {
           <SatisfactionGauge />
         </div>
         <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <StatCard label="Aujourd'hui" count={stats.day.count} average={stats.day.avg} deltaPct={stats.day.deltaPct} />
-          <StatCard label="Ce mois-ci" count={stats.month.count} average={stats.month.avg} deltaPct={stats.month.deltaPct} />
-          <StatCard label="Global" count={stats.total.count} average={stats.total.avg} deltaPct={stats.total.deltaPct} />
+          <StatCard
+            label="Aujourd'hui"
+            count={stats.day.count}
+            average={stats.day.avg}
+            deltaPct={stats.day.deltaPct}
+            onCommentsClick={() => {
+              setExpandedCommentRows({});
+              setSelectedCommentGroup({ title: "Commentaires - Aujourd'hui", items: commentGroups.day });
+            }}
+          />
+          <StatCard
+            label="Ce mois-ci"
+            count={stats.month.count}
+            average={stats.month.avg}
+            deltaPct={stats.month.deltaPct}
+            onCommentsClick={() => {
+              setExpandedCommentRows({});
+              setSelectedCommentGroup({ title: 'Commentaires - Ce mois-ci', items: commentGroups.month });
+            }}
+          />
+          <StatCard
+            label="Global"
+            count={stats.total.count}
+            average={stats.total.avg}
+            deltaPct={stats.total.deltaPct}
+            onCommentsClick={() => {
+              setExpandedCommentRows({});
+              setSelectedCommentGroup({ title: 'Commentaires - Global', items: commentGroups.total });
+            }}
+          />
         </div>
       </div>
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 flex-1 min-h-0 overflow-hidden">
     <AnalysisColumn 
         title="Irritants Majeurs" 
         items={topIrritants} 
         color="border-gray-400" 
         type="action"
-        onClick={() => setSelectedColumn({ title: 'Irritants Majeurs', type: 'irritants', items: irritantsDetails })}
+        onClick={() => {
+          setExpandedThemeRows({});
+          setSelectedColumn({ title: 'Irritants Majeurs', type: 'irritants', items: irritantsDetails });
+        }}
       />
     <AnalysisColumn 
-        title="5 Grands Axes (Thèmes)" 
+        title="Axes principale (Thèmes)" 
         items={topThemes} 
       color="border-gray-400" 
         type="theme"
-        onClick={() => setSelectedColumn({ title: '5 Grands Axes (Thèmes)', type: 'themes', items: themeDetails })}
+        onClick={() => {
+          setExpandedThemeRows({});
+          setSelectedColumn({ title: 'Axes principale (Thèmes)', type: 'themes', items: themeDetails });
+        }}
       />
+    <div className="lg:col-span-2 min-h-0">
+      <SectionDistribution sections={sectionDistribution} />
+    </div>
+    <div className="min-h-0">
+      <Motivation items={motivationItems} />
+    </div>
     </div>
 
     {selectedColumn && (
       <div
         className="fixed inset-0 z-50 bg-black/35 flex items-center justify-center px-4"
-        onClick={() => setSelectedColumn(null)}
+        onClick={() => {
+          setExpandedThemeRows({});
+          setSelectedColumn(null);
+        }}
       >
         <div
           className="w-full max-w-xl bg-white rounded-lg border border-gray-300 shadow-lg p-5"
@@ -271,7 +380,10 @@ export default function Home() {
             <button
               type="button"
               className="text-sm px-3 py-1 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              onClick={() => setSelectedColumn(null)}
+              onClick={() => {
+                setExpandedThemeRows({});
+                setSelectedColumn(null);
+              }}
             >
               Fermer
             </button>
@@ -305,11 +417,39 @@ export default function Home() {
                     <p className="font-semibold text-gray-900">{item.theme}</p>
                     {item.tickets.length > 0 ? (
                       <div className="mt-2 space-y-1">
-                        {item.tickets.map((ticket, ticketIndex) => (
-                          <div key={`${ticket.ticketId}-${ticket.createdAt}-${ticketIndex}`} className="text-xs text-gray-700 border border-gray-200 rounded px-2 py-1 bg-white">
-                            <span className="font-medium">Ticket ID:</span> {ticket.ticketId} | <span className="font-medium">Créé le:</span> {ticket.createdAt}
-                          </div>
-                        ))}
+                        {item.tickets.map((ticket, ticketIndex) => {
+                          const rowKey = `${item.theme}-${ticket.ticketId}-${ticket.createdAt}-${ticketIndex}`;
+                          const isExpanded = Boolean(expandedThemeRows[rowKey]);
+
+                          return (
+                            <div key={rowKey} className="text-xs text-gray-700 border border-gray-200 rounded bg-white overflow-hidden">
+                              <button
+                                type="button"
+                                className="w-full px-2 py-1.5 flex items-center justify-between gap-3 text-left hover:bg-gray-50"
+                                onClick={() => {
+                                  setExpandedThemeRows((previous) => ({
+                                    ...previous,
+                                    [rowKey]: !previous[rowKey]
+                                  }));
+                                }}
+                              >
+                                <span>
+                                  <span className="font-medium">Ticket ID:</span> {ticket.ticketId} | <span className="font-medium">Créé le:</span> {ticket.createdAt}
+                                </span>
+                                <span className="text-gray-700 font-black text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md border border-gray-300 bg-gray-100">
+                                  {isExpanded ? '▾' : '▸'}
+                                </span>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="px-2 py-2 border-t border-gray-200 bg-gray-50 space-y-1">
+                                  <p><span className="font-medium">Note:</span> {ticket.satisfaction}</p>
+                                  <p><span className="font-medium">Commentaire:</span> {ticket.comment}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500 italic mt-2">Aucun ticket associé</p>
@@ -320,6 +460,74 @@ export default function Home() {
             </ul>
           ) : (
             <p className="text-sm text-gray-500 italic">Aucune donnée disponible</p>
+          )}
+        </div>
+      </div>
+    )}
+
+    {selectedCommentGroup && (
+      <div
+        className="fixed inset-0 z-50 bg-black/35 flex items-center justify-center px-4"
+        onClick={() => {
+          setExpandedCommentRows({});
+          setSelectedCommentGroup(null);
+        }}
+      >
+        <div
+          className="w-full max-w-xl bg-white rounded-lg border border-gray-300 shadow-lg p-5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <h2 className="text-base font-bold text-gray-900">{selectedCommentGroup.title}</h2>
+            <button
+              type="button"
+              className="text-sm px-3 py-1 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+              onClick={() => {
+                setExpandedCommentRows({});
+                setSelectedCommentGroup(null);
+              }}
+            >
+              Fermer
+            </button>
+          </div>
+
+          {selectedCommentGroup.items.length > 0 ? (
+            <ul className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              {selectedCommentGroup.items.map((ticket) => {
+                const isExpanded = Boolean(expandedCommentRows[ticket.rowId]);
+
+                return (
+                  <li key={ticket.rowId} className="text-xs text-gray-700 border border-gray-200 rounded bg-white overflow-hidden">
+                    <button
+                      type="button"
+                      className="w-full px-2 py-1.5 flex items-center justify-between gap-3 text-left hover:bg-gray-50"
+                      onClick={() => {
+                        setExpandedCommentRows((previous) => ({
+                          ...previous,
+                          [ticket.rowId]: !previous[ticket.rowId]
+                        }));
+                      }}
+                    >
+                      <span>
+                        <span className="font-medium">Ticket ID:</span> {ticket.ticketId} | <span className="font-medium">Créé le:</span> {ticket.createdAt}
+                      </span>
+                      <span className="text-gray-700 font-black text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md border border-gray-300 bg-gray-100">
+                        {isExpanded ? '▾' : '▸'}
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-2 py-2 border-t border-gray-200 bg-gray-50 space-y-1">
+                        <p><span className="font-medium">Note:</span> {ticket.satisfaction}</p>
+                        <p><span className="font-medium">Commentaire:</span> {ticket.comment}</p>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500 italic">Aucun commentaire disponible</p>
           )}
         </div>
       </div>

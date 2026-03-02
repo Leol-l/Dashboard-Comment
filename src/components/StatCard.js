@@ -1,10 +1,10 @@
-export default function StatCard({ label, count, average, deltaPct = 0 }) {
+export default function StatCard({ label, count, average, deltaPct = 0, onCommentsClick }) {
   const safeAverage = Number(average);
   const numericAverage = Number.isFinite(safeAverage) ? safeAverage : 0;
   const safeDeltaPct = Number(deltaPct);
   const numericDeltaPct = Number.isFinite(safeDeltaPct) ? safeDeltaPct : 0;
   const deltaSign = numericDeltaPct >= 0 ? '+' : '-';
-  const formattedDelta = `${deltaSign}${Math.abs(numericDeltaPct).toFixed(1).replace('.', ',')}%`;
+  const formattedDelta = `Δ ${deltaSign}${Math.abs(numericDeltaPct).toFixed(1).replace('.', ',')}`;
   const deltaBgClass = numericDeltaPct >= 0 ? 'bg-emerald-600' : 'bg-red-500';
 
   
@@ -34,7 +34,18 @@ export default function StatCard({ label, count, average, deltaPct = 0 }) {
       </div>
       
       {/* Bloc Commentaires */}
-      <div className="bg-white rounded-lg border border-gray-300 border-l-4 border-l-gray-300 p-4 flex flex-col min-h-[120px] hover:shadow-sm transition-all">
+      <div
+        onClick={onCommentsClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onCommentsClick?.();
+          }
+        }}
+        className={`bg-white rounded-lg border border-gray-300 border-l-4 border-l-gray-300 p-4 flex flex-col min-h-[120px] hover:shadow-sm transition-all ${onCommentsClick ? 'cursor-pointer' : ''}`}
+      >
         <h3 className="text-gray-700 text-[10px] font-semibold uppercase tracking-widest">Commentaires</h3>
         <div className="flex-1 flex items-center justify-center mt-2 min-h-0">
           <div className="flex items-end justify-center gap-3">
