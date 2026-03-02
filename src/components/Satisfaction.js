@@ -38,9 +38,11 @@ const SatisfactionGauge = ({ onClick }) => {
     return { bg: 'bg-red-500', text: 'text-red-600', label: 'Très faible' };
   };
 
-  const color = getColor(data.average);
-  const clamped = Math.max(0, Math.min(5, data.average));
-  const percent = clamped / 5;
+  const numericAverage = Number(data.average);
+  const safeAverage = Number.isFinite(numericAverage) ? numericAverage : 1;
+  const color = getColor(safeAverage);
+  const clamped = Math.max(1, Math.min(5, safeAverage));
+  const percent = (clamped - 1) / 4;
   const rotation = -90 + percent * 180;
 
   return (
@@ -87,7 +89,7 @@ const SatisfactionGauge = ({ onClick }) => {
       <div className="flex flex-col items-center justify-center gap-1 text-center justify-self-center">
         <div className="flex items-center gap-2">
           <span className={`text-2xl font-black ${color.text}`}>
-            {data.average.toFixed(1)}
+            {safeAverage.toFixed(1)}
           </span>
           <span className="text-xs text-gray-400 font-bold">/ 5</span>
         </div>
