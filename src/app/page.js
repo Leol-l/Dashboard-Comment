@@ -7,6 +7,8 @@ import SatisfactionGauge from '../components/Satisfaction';
 import Motivation from '../components/Motivation';
 import SectionDistribution from '../components/SectionDistribution';
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export default function Home() {
   const urgencyOrder = {
     Urgent: 4,
@@ -74,8 +76,8 @@ export default function Home() {
     const fetchData = async () => {
       try {
         const [satisfactionResult, sectionsResult] = await Promise.allSettled([
-          axios.get('/api/external/dashboard/satisfaction-data'),
-          axios.get('/api/external/dashboard/sections-distribution')
+          axios.get(`${BASE_PATH}/api/external/dashboard/satisfaction-data`),
+          axios.get(`${BASE_PATH}/api/external/dashboard/sections-distribution`)
         ]);
 
         if (satisfactionResult.status !== 'fulfilled') {
@@ -254,10 +256,16 @@ export default function Home() {
           } catch (e) { console.error("Erreur parse JSON item", item.id); }
         });
 
-        const detailedThemes = Array.from(themesMap.entries()).map(([theme, ticketsMap]) => ({
-          theme,
-          tickets: Array.from(ticketsMap.values())
-        }));
+        const detailedThemes = Array.from(themesMap.entries())
+          .map(([theme, ticketsMap]) => ({
+            theme,
+            tickets: Array.from(ticketsMap.values())
+          }))
+          .sort((left, right) => {
+            const countDiff = right.tickets.length - left.tickets.length;
+            if (countDiff !== 0) return countDiff;
+            return String(left.theme).localeCompare(String(right.theme), 'fr');
+          });
 
         setThemeDetails(detailedThemes);
         setTopThemes(detailedThemes.map((item) => ({

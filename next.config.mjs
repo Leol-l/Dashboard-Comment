@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: '/Dashboard',
+  env: {
+    NEXT_PUBLIC_BASE_PATH: '/Dashboard'
+  },
   async rewrites() {
     return [
       {

@@ -3,13 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const SatisfactionGauge = ({ onClick }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
     const fetchSatisfaction = async () => {
       try {
-        const res = await fetch('/api/satisfaction');
+        const res = await fetch(`${BASE_PATH}/api/satisfaction`);
         const result = await res.json();
         setData(result);
       } catch (error) {
