@@ -235,10 +235,21 @@ export default function Home() {
 
             if (irritant) {
               if (!irritantsMap.has(irritant)) {
-                irritantsMap.set(irritant, new Map());
+                irritantsMap.set(irritant, {
+                  actionsMap: new Map(),
+                  ticketsMap: new Map()
+                });
               }
 
-              const actionsMap = irritantsMap.get(irritant);
+              const { actionsMap, ticketsMap } = irritantsMap.get(irritant);
+              const ticketId = item?.tickets_id ?? item?.id ?? 'N/A';
+              const createdAt = normalizeDateKey(item?.date_answered) || 'N/A';
+              const ticketKey = `${ticketId}__${createdAt}`;
+
+              ticketsMap.set(ticketKey, {
+                ticketId,
+                createdAt
+              });
 
               actions.forEach((actionItem) => {
                 const actionDescription = actionItem?.action_description;
@@ -273,13 +284,24 @@ export default function Home() {
           count: item.tickets.length
         })));
 
-        const detailedIrritants = Array.from(irritantsMap.entries()).map(([irritant, actionsMap]) => {
-          const actions = Array.from(actionsMap.values());
+        const detailedIrritants = Array.from(irritantsMap.entries()).map(([irritant, maps]) => {
+          const actions = Array.from(maps.actionsMap.values());
+          const tickets = Array.from(maps.ticketsMap.values());
           return {
             irritant,
             actions,
+            tickets,
             mainUrgency: getMainUrgency(actions)
           };
+        }).sort((left, right) => {
+          const leftUrgency = urgencyOrder[left.mainUrgency] || 0;
+          const rightUrgency = urgencyOrder[right.mainUrgency] || 0;
+
+          if (rightUrgency !== leftUrgency) {
+            return rightUrgency - leftUrgency;
+          }
+
+          return String(left.irritant).localeCompare(String(right.irritant), 'fr');
         });
 
         const topDetailedIrritants = detailedIrritants.slice(0, 5);
@@ -408,11 +430,45 @@ export default function Home() {
                     </div>
                     {item.actions.length > 0 ? (
                       <div className="mt-2 space-y-1">
-                        {item.actions.map((action, actionIndex) => (
-                          <div key={`${action.action_description}-${actionIndex}`} className="text-xs text-gray-700 border border-gray-200 rounded px-2 py-1 bg-white">
-                            <span className="font-medium">Action:</span> {action.action_description} | <span className="font-medium">Urgence:</span> {action.urgency_level}
-                          </div>
-                        ))}
+                        {item.actions.map((action, actionIndex) => {
+                          const rowKey = `irritant-action-${item.irritant}-${actionIndex}`;
+                          const isExpanded = Boolean(expandedThemeRows[rowKey]);
+
+                          return (
+                            <div key={`${action.action_description}-${actionIndex}`} className="text-xs text-gray-700 border border-gray-200 rounded bg-white overflow-hidden">
+                              <button
+                                type="button"
+                                className="w-full px-2 py-1.5 flex items-center justify-between gap-3 text-left hover:bg-gray-50"
+                                onClick={() => {
+                                  setExpandedThemeRows((previous) => ({
+                                    ...previous,
+                                    [rowKey]: !previous[rowKey]
+                                  }));
+                                }}
+                              >
+                                <span><span className="font-medium">Action:</span> {action.action_description} | <span className="font-medium">Urgence:</span> {action.urgency_level}</span>
+                                <span className="text-gray-700 font-black text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md border border-gray-300 bg-gray-100">
+                                  {isExpanded ? '▾' : '▸'}
+                                </span>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="px-2 py-2 border-t border-gray-200 bg-gray-50 space-y-1">
+                                  {item.tickets?.length > 0 ? (
+                                    item.tickets.map((ticket, ticketIndex) => (
+                                      <div key={`${item.irritant}-${actionIndex}-${ticket.ticketId}-${ticket.createdAt}-${ticketIndex}`}>
+                                        <p><span className="font-medium">Ticket ID:</span> {ticket.ticketId}</p>
+                                        <p><span className="font-medium">Créé le:</span> {ticket.createdAt}</p>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-xs text-gray-500 italic">Aucun ticket associé</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500 italic mt-2">Aucune action prioritaire associée</p>

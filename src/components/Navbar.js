@@ -51,15 +51,13 @@ const Navbar = () => {
       <nav className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
         <p className="text-xs text-slate-500 capitalize">{currentDate}</p>
 
-        {!isSectionPage && <span aria-hidden="true" className="inline-block w-10" />}
-
-        <div className="flex items-center gap-1 rounded-2xl bg-slate-100 p-1">
+        <div className="relative flex items-center gap-1 rounded-2xl bg-slate-100 p-1">
           {isSectionPage && (
             <Link
               href="/"
               aria-label="Retour à l'accueil"
               title="Accueil"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-200/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="absolute -left-10 inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-200/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <House size={16} />
             </Link>

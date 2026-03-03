@@ -1,36 +1,140 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Dashboard-Comment
 
-## Getting Started
+Frontend Next.js du dashboard de satisfaction GLPI.
 
-First, run the development server:
+Ce projet :
+- affiche les KPI de satisfaction,
+- visualise la répartition des sections (`ERP`, `Admin`, `Support`),
+- présente les commentaires mensuels et les éléments d'analyse,
+- consomme l'API backend `API-GLPI`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+- Next.js (App Router)
+- React
+- Axios
+- Recharts
+- Lucide React
+- Tailwind CSS
+
+## Ports et URLs
+
+- Frontend Next : `http://localhost:3001`
+- API backend attendue : `http://localhost:3000`
+- Base path frontend : `/Dashboard`
+	- URL finale locale : `http://localhost:3001/Dashboard`
+
+## Structure (simplifiée)
+
+```txt
+dashboard-comment/
+	src/
+		app/
+			page.js
+			section/page.js
+			api/
+				satisfaction/route.js
+				section/monthly-comments/route.js
+		components/
+			Satisfaction.js
+			SectionDashboardTemplate.js
+			AnalysisColumn.js
+			SectionDistribution.js
+			StatCard.js
+			Motivation.js
+			Navbar.js
+	next.config.mjs
+	package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Installation
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts npm
 
-## Learn More
+- `npm run dev` : démarre en dev sur le port `3001`.
+- `npm run build` : build de production.
+- `npm run start` : lance l'app buildée sur `3001`.
+- `npm run lint` : lint Next.js.
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration Next
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Le fichier `next.config.mjs` configure :
+- `basePath: '/Dashboard'`
+- `NEXT_PUBLIC_BASE_PATH: '/Dashboard'`
+- une rewrite pour proxy externe :
+	- source : `/api/external/:path*`
+	- destination : `http://localhost:3000/api/:path*`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Routes API internes (Next)
 
-## Deploy on Vercel
+Ces routes servent de proxy/BFF entre le frontend et `API-GLPI`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /Dashboard/api/satisfaction`
+	- cible backend : `/api/dashboard/satisfaction-data`
+	- retourne : `{ average, total }`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /Dashboard/api/section/monthly-comments?section=Support|Admin|ERP`
+	- cible backend : `/api/dashboard/section-monthly-comments?section=...`
+	- retourne :
+		- `data`
+		- `stats.today/month/global`
+		- `monthlyComments`
+
+## Endpoints backend consommés
+
+Le frontend utilise les endpoints backend suivants :
+- `/api/dashboard/satisfaction-data`
+- `/api/dashboard/sections-distribution`
+- `/api/dashboard/section-monthly-comments`
+
+## Démarrage local complet
+
+### 1) Démarrer l'API backend
+
+Dans `API-GLPI` :
+
+```bash
+npm install
+npm run dev
+```
+
+### 2) Démarrer le frontend
+
+Dans `Dashboard-Comment/dashboard-comment` :
+
+```bash
+npm install
+npm run dev
+```
+
+Ouvrir ensuite : `http://localhost:3001/Dashboard`
+
+## Flux de données
+
+1. Le composant React appelle une route API Next (`/api/...`).
+2. La route Next appelle le backend Express (`localhost:3000`).
+3. Le backend renvoie un payload agrégé.
+4. Le frontend affiche les cartes, colonnes d'analyse et graphiques.
+
+## Erreurs fréquentes
+
+- `Unexpected token '<', "<!DOCTYPE ..." is not valid JSON`
+	- signifie que l'URL appelée renvoie du HTML (souvent une 404) au lieu d'un JSON.
+	- vérifier que les fichiers API sont bien au format App Router : `.../route.js`.
+
+- Données vides dans la section
+	- vérifier que l'API backend expose bien `/api/dashboard/section-monthly-comments`.
+	- vérifier la valeur du paramètre `section`.
+
+- Requêtes API qui échouent
+	- vérifier que `API-GLPI` tourne sur le port `3000`.
+
+## Bonnes pratiques de dev
+
+- Garder la logique métier côté backend (`API-GLPI`).
+- Garder le frontend centré sur l'affichage et l'interaction.
+- Utiliser les routes API Next comme couche d'accès stable entre UI et backend.
