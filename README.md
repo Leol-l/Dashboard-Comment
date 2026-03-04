@@ -1,99 +1,276 @@
 # Dashboard-Comment
 
-Frontend Next.js du dashboard de satisfaction GLPI.
+Frontend Next.js (App Router) pour la visualisation des analyses de satisfaction GLPI produites par `API-GLPI`.
 
-Ce projet :
-- affiche les KPI de satisfaction,
-- visualise la répartition des sections (`ERP`, `Admin`, `Support`),
-- présente les commentaires mensuels et les éléments d'analyse,
-- consomme l'API backend `API-GLPI`.
+## Sommaire
 
-## Stack
+- [Objectif](#objectif)
+- [Fonctionnalités](#fonctionnalités)
+- [Stack technique](#stack-technique)
+- [Arborescence](#arborescence)
+- [Configuration Next](#configuration-next)
+- [Ports, URLs et basePath](#ports-urls-et-basepath)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Démarrage](#démarrage)
+- [Pages et navigation](#pages-et-navigation)
+- [Routes API internes (BFF/proxy)](#routes-api-internes-bffproxy)
+- [Endpoints backend consommés](#endpoints-backend-consommés)
+- [Flux de données](#flux-de-données)
+- [Structure attendue des payloads](#structure-attendue-des-payloads)
+- [Comportements UI importants](#comportements-ui-importants)
+- [Dépannage](#dépannage)
+- [Scripts npm](#scripts-npm)
 
-- Next.js (App Router)
-- React
+## Objectif
+
+Ce projet fournit une interface orientée exploitation pour :
+
+- suivre les KPI de satisfaction (jour/mois/global),
+- visualiser la distribution des sections (`Support`, `ERP`, `Admin`),
+- explorer les thèmes récurrents et irritants majeurs,
+- consulter la tendance journalière des commentaires sur 30 jours,
+- filtrer l’analyse par section.
+
+## Fonctionnalités
+
+- Dashboard global (`/Dashboard`) avec :
+	- cartes de stats,
+	- jauge de satisfaction,
+	- colonnes analytiques (thèmes/irritants),
+	- distribution par section.
+- Dashboard section (`/Dashboard/section?section=...`) avec :
+	- mêmes KPI appliqués à la section,
+	- graphe `monthlyComments` sur 30 jours,
+	- extraction des commentaires motivants.
+- Actualisation périodique des données (toutes les 60 secondes sur la page section).
+- Barre de navigation avec onglets de section et compteur de rafraîchissement visuel.
+
+## Stack technique
+
+- Next.js 16 (App Router)
+- React 19
 - Axios
 - Recharts
 - Lucide React
-- Tailwind CSS
+- Tailwind CSS 4
 
-## Ports et URLs
-
-- Frontend Next : `http://localhost:3001`
-- API backend attendue : `http://localhost:3000`
-- Base path frontend : `/Dashboard`
-	- URL finale locale : `http://localhost:3001/Dashboard`
-
-## Structure (simplifiée)
+## Arborescence
 
 ```txt
 dashboard-comment/
 	src/
 		app/
+			layout.js
 			page.js
 			section/page.js
 			api/
 				satisfaction/route.js
 				section/monthly-comments/route.js
 		components/
-			Satisfaction.js
-			SectionDashboardTemplate.js
 			AnalysisColumn.js
-			SectionDistribution.js
-			StatCard.js
 			Motivation.js
 			Navbar.js
+			Satisfaction.js
+			SectionDashboardTemplate.js
+			SectionDistribution.js
+			StatCard.js
 	next.config.mjs
 	package.json
 ```
 
+## Configuration Next
+
+Le fichier `next.config.mjs` contient :
+
+- `basePath: '/Dashboard'`
+- variable d’environnement publique injectée : `NEXT_PUBLIC_BASE_PATH='/Dashboard'`
+- rewrite proxy :
+	- source : `/api/external/:path*`
+	- destination : `http://localhost:3000/api/:path*`
+
+Cette rewrite permet aux composants de taper des URLs locales Next tout en ciblant le backend Express.
+
+## Ports, URLs et basePath
+
+- Frontend local : `http://localhost:3001`
+- URL de l’application : `http://localhost:3001/Dashboard`
+- Backend attendu : `http://localhost:3000`
+
+Important : avec `basePath`, les routes visibles côté navigateur incluent toujours `/Dashboard`.
+
+## Prérequis
+
+- Node.js 18+ (LTS recommandé)
+- API backend `API-GLPI` démarrée sur le port `3000`
+
 ## Installation
+
+Depuis le dossier `Dashboard-Comment/dashboard-comment` :
 
 ```bash
 npm install
 ```
 
-## Scripts npm
+## Démarrage
 
-- `npm run dev` : démarre en dev sur le port `3001`.
-- `npm run build` : build de production.
-- `npm run start` : lance l'app buildée sur `3001`.
-- `npm run lint` : lint Next.js.
+### Développement
 
-## Configuration Next
+```bash
+npm run dev
+```
 
-Le fichier `next.config.mjs` configure :
-- `basePath: '/Dashboard'`
-- `NEXT_PUBLIC_BASE_PATH: '/Dashboard'`
-- une rewrite pour proxy externe :
-	- source : `/api/external/:path*`
-	- destination : `http://localhost:3000/api/:path*`
+### Build + run production
 
-## Routes API internes (Next)
+```bash
+npm run build
+npm run start
+```
 
-Ces routes servent de proxy/BFF entre le frontend et `API-GLPI`.
+## Pages et navigation
 
-- `GET /Dashboard/api/satisfaction`
-	- cible backend : `/api/dashboard/satisfaction-data`
-	- retourne : `{ average, total }`
+- `/Dashboard`
+	- page globale (fichier `src/app/page.js`)
+- `/Dashboard/section?section=Support|ERP|Admin`
+	- page section (fichiers `src/app/section/page.js` + `src/components/SectionDashboardTemplate.js`)
 
-- `GET /Dashboard/api/section/monthly-comments?section=Support|Admin|ERP`
-	- cible backend : `/api/dashboard/section-monthly-comments?section=...`
-	- retourne :
-		- `data`
-		- `stats.today/month/global`
-		- `monthlyComments`
+Règle de normalisation : si `section` est invalide, la page bascule sur `Support`.
+
+## Routes API internes (BFF/proxy)
+
+### `GET /Dashboard/api/satisfaction`
+
+- Source : `src/app/api/satisfaction/route.js`
+- Appelle : `http://localhost:3000/api/dashboard/satisfaction-data`
+- Retour principal :
+
+```json
+{
+	"average": 3.8,
+	"total": 120
+}
+```
+
+### `GET /Dashboard/api/section/monthly-comments?section=Support|ERP|Admin`
+
+- Source : `src/app/api/section/monthly-comments/route.js`
+- Appelle : `http://localhost:3000/api/dashboard/section-monthly-comments?section=...`
+- Retourne le payload de section ; en fallback retourne un payload vide structuré.
+- En cas de `404` backend, ajoute une clé `warning` explicite pour faciliter le diagnostic.
 
 ## Endpoints backend consommés
 
-Le frontend utilise les endpoints backend suivants :
+Selon les écrans et composants, le frontend consomme :
+
 - `/api/dashboard/satisfaction-data`
 - `/api/dashboard/sections-distribution`
 - `/api/dashboard/section-monthly-comments`
 
-## Démarrage local complet
+Deux modes d’accès coexistent :
 
-### 1) Démarrer l'API backend
+- via rewrite Next (`/api/external/...`) depuis les composants client,
+- via routes API Next internes (`/api/section/monthly-comments`, `/api/satisfaction`).
+
+## Flux de données
+
+1. L’UI appelle soit une route API Next, soit une route rewrite locale.
+2. Next relaie vers `API-GLPI` sur `localhost:3000`.
+3. Le backend renvoie des données déjà agrégées (stats, section, séries journalières).
+4. Les composants React calculent l’affichage final :
+	 - top thèmes,
+	 - top irritants,
+	 - commentaires motivants,
+	 - cartes de stats et graphiques.
+
+## Structure attendue des payloads
+
+### Payload global (`/api/dashboard/satisfaction-data`)
+
+```json
+{
+	"total": 120,
+	"data": [
+		{
+			"id": 1,
+			"tickets_id": 1001,
+			"satisfaction": 4,
+			"date_answered": "2026-03-04",
+			"comment": "...",
+			"analysis_result": "{...}"
+		}
+	],
+	"stats": {
+		"today": { "count": 1, "avg": 4, "deltaPct": 0 },
+		"month": { "count": 20, "avg": 3.9, "deltaPct": 0.1 },
+		"global": { "count": 120, "avg": 4.1, "deltaPct": 0.02 }
+	}
+}
+```
+
+### Payload section (`/api/dashboard/section-monthly-comments`)
+
+```json
+{
+	"section": "Support",
+	"total": 60,
+	"data": [],
+	"stats": {
+		"today": { "count": 0, "avg": 0, "deltaPct": 0 },
+		"month": { "count": 0, "avg": 0, "deltaPct": 0 },
+		"global": { "count": 0, "avg": 0, "deltaPct": 0 }
+	},
+	"monthlyComments": [
+		{ "date": "2026-02-04", "count": 0 }
+	]
+}
+```
+
+## Comportements UI importants
+
+- Les colonnes analytiques lisent `analysis_result` (JSON string ou objet) pour extraire :
+	- `themes_recurrents`
+	- `irritants_majeurs`
+	- `actions_prioritaires`
+- Les commentaires motivants sont filtrés avec `satisfaction >= 4`.
+- Les statistiques affichées sont sécurisées (`sanitizeStat`) pour éviter les valeurs `NaN`.
+
+## Dépannage
+
+### Erreur JSON `Unexpected token '<'`
+
+Cause probable : URL retournant du HTML (404) au lieu de JSON.
+
+Vérifier :
+
+- que l’API backend tourne bien,
+- que les routes App Router existent en `.../route.js`,
+- que l’URL inclut correctement `/Dashboard` en front.
+
+### Données sections vides
+
+- Vérifier l’endpoint backend `/api/dashboard/section-monthly-comments`.
+- Vérifier que `section` vaut `Support`, `ERP` ou `Admin`.
+
+### Erreurs de connexion API
+
+- Vérifier que `API-GLPI` écoute sur `localhost:3000`.
+- Vérifier les rewrites dans `next.config.mjs`.
+
+### Navigation incorrecte sans basePath
+
+- Vérifier que les URLs frontend utilisent bien `/Dashboard`.
+- Vérifier que `NEXT_PUBLIC_BASE_PATH` est défini via `next.config.mjs`.
+
+## Scripts npm
+
+- `npm run dev` : démarre Next.js sur `3001`
+- `npm run build` : build production
+- `npm run start` : démarre l’app buildée sur `3001`
+- `npm run lint` : lint projet
+
+## Démarrage local complet (backend + frontend)
+
+### 1) Démarrer API-GLPI
 
 Dans `API-GLPI` :
 
@@ -102,7 +279,7 @@ npm install
 npm run dev
 ```
 
-### 2) Démarrer le frontend
+### 2) Démarrer Dashboard-Comment
 
 Dans `Dashboard-Comment/dashboard-comment` :
 
@@ -111,30 +288,4 @@ npm install
 npm run dev
 ```
 
-Ouvrir ensuite : `http://localhost:3001/Dashboard`
-
-## Flux de données
-
-1. Le composant React appelle une route API Next (`/api/...`).
-2. La route Next appelle le backend Express (`localhost:3000`).
-3. Le backend renvoie un payload agrégé.
-4. Le frontend affiche les cartes, colonnes d'analyse et graphiques.
-
-## Erreurs fréquentes
-
-- `Unexpected token '<', "<!DOCTYPE ..." is not valid JSON`
-	- signifie que l'URL appelée renvoie du HTML (souvent une 404) au lieu d'un JSON.
-	- vérifier que les fichiers API sont bien au format App Router : `.../route.js`.
-
-- Données vides dans la section
-	- vérifier que l'API backend expose bien `/api/dashboard/section-monthly-comments`.
-	- vérifier la valeur du paramètre `section`.
-
-- Requêtes API qui échouent
-	- vérifier que `API-GLPI` tourne sur le port `3000`.
-
-## Bonnes pratiques de dev
-
-- Garder la logique métier côté backend (`API-GLPI`).
-- Garder le frontend centré sur l'affichage et l'interaction.
-- Utiliser les routes API Next comme couche d'accès stable entre UI et backend.
+Puis ouvrir : `http://localhost:3001/Dashboard`
