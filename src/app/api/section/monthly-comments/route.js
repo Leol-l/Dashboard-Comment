@@ -11,10 +11,11 @@ const EMPTY_PAYLOAD = {
 
 export async function GET(request) {
   try {
+    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     const { searchParams } = new URL(request.url);
     const section = searchParams.get('section') || 'Support';
 
-    const response = await fetch(`http://localhost:3000/api/dashboard/section-monthly-comments?section=${encodeURIComponent(section)}`, {
+    const response = await fetch(`${apiBaseUrl}/api/dashboard/section-monthly-comments?section=${encodeURIComponent(section)}`, {
       cache: 'no-store'
     });
 

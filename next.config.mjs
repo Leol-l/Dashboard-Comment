@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+
 const nextConfig = {
   basePath: '/Dashboard',
   env: {
@@ -8,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/api/external/:path*',
-        destination: 'http://localhost:3000/api/:path*', // Redirige vers ton API port 3000
+        destination: `${apiBaseUrl}/api/:path*`,
       },
     ];
   },

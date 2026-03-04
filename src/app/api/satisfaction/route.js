@@ -1,6 +1,7 @@
 export async function GET() {
   try {
-    const res = await fetch('http://localhost:3000/api/dashboard/satisfaction-data');
+    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const res = await fetch(`${apiBaseUrl}/api/dashboard/satisfaction-data`);
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
     }

@@ -85,9 +85,10 @@ Le fichier `next.config.mjs` contient :
 
 - `basePath: '/Dashboard'`
 - variable d’environnement publique injectée : `NEXT_PUBLIC_BASE_PATH='/Dashboard'`
+- variable d’environnement backend : `API_BASE_URL` (défaut `http://localhost:3000`)
 - rewrite proxy :
 	- source : `/api/external/:path*`
-	- destination : `http://localhost:3000/api/:path*`
+	- destination : `${API_BASE_URL}/api/:path*`
 
 Cette rewrite permet aux composants de taper des URLs locales Next tout en ciblant le backend Express.
 
@@ -95,7 +96,7 @@ Cette rewrite permet aux composants de taper des URLs locales Next tout en cibla
 
 - Frontend local : `http://localhost:3001`
 - URL de l’application : `http://localhost:3001/Dashboard`
-- Backend attendu : `http://localhost:3000`
+- Backend attendu : valeur de `API_BASE_URL` (par défaut `http://localhost:3000`)
 
 Important : avec `basePath`, les routes visibles côté navigateur incluent toujours `/Dashboard`.
 
@@ -120,6 +121,13 @@ npm install
 npm run dev
 ```
 
+Optionnel (si ton backend n'est pas sur `localhost:3000`) :
+
+```powershell
+$env:API_BASE_URL='http://localhost:3000'
+npm run dev
+```
+
 ### Build + run production
 
 ```bash
@@ -141,7 +149,7 @@ Règle de normalisation : si `section` est invalide, la page bascule sur `Suppor
 ### `GET /Dashboard/api/satisfaction`
 
 - Source : `src/app/api/satisfaction/route.js`
-- Appelle : `http://localhost:3000/api/dashboard/satisfaction-data`
+- Appelle : `${API_BASE_URL}/api/dashboard/satisfaction-data`
 - Retour principal :
 
 ```json
@@ -154,7 +162,7 @@ Règle de normalisation : si `section` est invalide, la page bascule sur `Suppor
 ### `GET /Dashboard/api/section/monthly-comments?section=Support|ERP|Admin`
 
 - Source : `src/app/api/section/monthly-comments/route.js`
-- Appelle : `http://localhost:3000/api/dashboard/section-monthly-comments?section=...`
+- Appelle : `${API_BASE_URL}/api/dashboard/section-monthly-comments?section=...`
 - Retourne le payload de section ; en fallback retourne un payload vide structuré.
 - En cas de `404` backend, ajoute une clé `warning` explicite pour faciliter le diagnostic.
 
@@ -174,7 +182,7 @@ Deux modes d’accès coexistent :
 ## Flux de données
 
 1. L’UI appelle soit une route API Next, soit une route rewrite locale.
-2. Next relaie vers `API-GLPI` sur `localhost:3000`.
+2. Next relaie vers `API-GLPI` via `API_BASE_URL`.
 3. Le backend renvoie des données déjà agrégées (stats, section, séries journalières).
 4. Les composants React calculent l’affichage final :
 	 - top thèmes,
@@ -253,7 +261,7 @@ Vérifier :
 
 ### Erreurs de connexion API
 
-- Vérifier que `API-GLPI` écoute sur `localhost:3000`.
+- Vérifier que `API_BASE_URL` pointe vers `API-GLPI`.
 - Vérifier les rewrites dans `next.config.mjs`.
 
 ### Navigation incorrecte sans basePath
