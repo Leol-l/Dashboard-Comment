@@ -8,6 +8,8 @@ import Motivation from '../components/Motivation';
 import SectionDistribution from '../components/SectionDistribution';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const REFRESH_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS || 1800000);
+const DASHBOARD_LAST_UPDATED_KEY = 'dashboardLastUpdatedAt';
 
 export default function Home() {
   const urgencyOrder = {
@@ -59,6 +61,12 @@ export default function Home() {
     { key: 'Support', label: 'Support', count: 0 }
   ]);
   const [loading, setLoading] = useState(true);
+
+  const markDashboardUpdated = () => {
+    const timestamp = Date.now();
+    window.localStorage.setItem(DASHBOARD_LAST_UPDATED_KEY, String(timestamp));
+    window.dispatchEvent(new CustomEvent('dashboard-data-updated', { detail: { timestamp } }));
+  };
 
   const sanitizeStat = (value) => {
     const count = Number(value?.count);
@@ -308,6 +316,7 @@ export default function Home() {
 
         setIrritantsDetails(topDetailedIrritants);
         setTopIrritants(topDetailedIrritants);
+        markDashboardUpdated();
         setLoading(false);
       } catch (err) {
         console.error("Erreur API:", err);
@@ -316,7 +325,7 @@ export default function Home() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(fetchData, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);

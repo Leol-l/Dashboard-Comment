@@ -16,6 +16,8 @@ import AnalysisColumn from './AnalysisColumn';
 import Motivation from './Motivation';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const REFRESH_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS || 1800000);
+const DASHBOARD_LAST_UPDATED_KEY = 'dashboardLastUpdatedAt';
 
 export default function SectionDashboardTemplate({ section }) {
   const urgencyOrder = {
@@ -59,6 +61,12 @@ export default function SectionDashboardTemplate({ section }) {
   const [selectedCommentGroup, setSelectedCommentGroup] = useState(null);
   const [expandedCommentRows, setExpandedCommentRows] = useState({});
 
+  const markDashboardUpdated = () => {
+    const timestamp = Date.now();
+    window.localStorage.setItem(DASHBOARD_LAST_UPDATED_KEY, String(timestamp));
+    window.dispatchEvent(new CustomEvent('dashboard-data-updated', { detail: { timestamp } }));
+  };
+
   const sanitizeStat = (value) => {
     const count = Number(value?.count);
     const avg = Number(value?.avg);
@@ -87,6 +95,7 @@ export default function SectionDashboardTemplate({ section }) {
 
         setSectionItems(Array.isArray(payload?.data) ? payload.data : []);
         setMonthlyComments(Array.isArray(payload?.monthlyComments) ? payload.monthlyComments : []);
+        markDashboardUpdated();
       } catch (error) {
         console.warn(`Données ${section} indisponibles temporairement.`);
       } finally {
@@ -96,7 +105,7 @@ export default function SectionDashboardTemplate({ section }) {
 
     setLoading(true);
     fetchSectionData();
-    const interval = setInterval(fetchSectionData, 60000);
+    const interval = setInterval(fetchSectionData, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [section]);

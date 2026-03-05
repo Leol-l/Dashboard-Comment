@@ -85,6 +85,7 @@ Le fichier `next.config.mjs` contient :
 
 - `basePath: '/Dashboard'`
 - variable d’environnement publique injectée : `NEXT_PUBLIC_BASE_PATH='/Dashboard'`
+- variable d’environnement publique injectée : `NEXT_PUBLIC_REFRESH_INTERVAL_MS` (dérivée de `SCHEDULE_INTERVAL`)
 - variable d’environnement backend : `API_BASE_URL` (défaut `http://localhost:3000`)
 - rewrite proxy :
 	- source : `/api/external/:path*`
@@ -125,8 +126,11 @@ Optionnel (si ton backend n'est pas sur `localhost:3000`) :
 
 ```powershell
 $env:API_BASE_URL='http://localhost:3000'
+$env:SCHEDULE_INTERVAL='30'
 npm run dev
 ```
+
+`SCHEDULE_INTERVAL` pilote aussi l’actualisation automatique du dashboard (même cadence que le scheduler API).
 
 ### Build + run production
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const REFRESH_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS || 1800000);
 
 const SatisfactionGauge = ({ onClick }) => {
   const [data, setData] = useState(null);
@@ -20,7 +21,7 @@ const SatisfactionGauge = ({ onClick }) => {
     };
 
     fetchSatisfaction();
-    const interval = setInterval(fetchSatisfaction, 60000);
+    const interval = setInterval(fetchSatisfaction, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
